@@ -4,13 +4,13 @@ python3.7+(推荐3.10以上,这是我的运行环境)
 
 `pip install httpx[brotli,http2,socks]`
 
-一个https://github.com/jhao104/proxy_pool的代理池,获取随机代理在http://127.0.0.1:5010/get
+一个https://github.com/jhao104/proxy_pool的代理池,获取随机代理在http://127.0.0.1:5010/get/
 
 或者你也可以在"GetRandomProxy.py"里将UrlOfProxy改为你自己的获取随机代理api
 
 在win64的二进制文件里有提供它的运行环境,第一次运行前你需要进入"RequestHFSCaptcha\ProxyPool"输入命令`pip install -r requirements.txt`
 
-之后你只需要输入`python main.py`即可运行代理池,这会新建一个cmd窗口,是redis的,当前窗口被用于运行代理池服务器,这些子进程全部打开后main.py会退出,不用担心有一个空闲进程的问题 :)
+之后你只需要输入`python main.py`即可运行代理池,这会新建三个cmd窗口(加上main.py的有四个),main.py结束后它自己的窗口可以被安全的关闭
 
 # 使用方式
 
@@ -24,8 +24,10 @@ python Control.py <协程并发数> <几个并发使用代理> <网络timeout时
 
 就是这样!
 
-#更新日志
+# 更新日志
 
 相比于之前的库,使用asyncio全面重构,并且提供了更适合人类阅读的api
+
+可以管这个库叫attack_hfs_v2)))
 
 玩的开心 :D
