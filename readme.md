@@ -1,4 +1,4 @@
-[![AttackHFS](/icons/icon.png)]
+![AttackHFS](/icons/icon.png)
 
 # 运行要求
 
