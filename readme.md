@@ -2,7 +2,7 @@
 
 python3.7+(推荐3.10以上,这是我的运行环境)
 
-`pip install httpx\[brotli,http2,socks\]`
+`pip install httpx[brotli,http2,socks]`
 
 一个https://github.com/jhao104/proxy_pool的代理池,获取随机代理在http://127.0.0.1:5010/get
 
