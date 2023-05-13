@@ -1,20 +1,17 @@
 #-*- coding:utf-8 -*-
-import asyncio,Sender,logging
-from traceback import print_exc
-from logging import debug
+import asyncio,Sender,logging,sys
 #是否正在运行,计数器和日志文件
 running=True
-ok=0
 log=open("error.log","a",65536)
 #一直发送请求,直到running为False时退出,计数
 async def SendLoop(Send):
-    global ok,running
-    try:
-        while running:
-            ok+=await Send()
-    except Exception as a:
-        debug(f"SendLoop error:{a}")
-        print_exc(file=log)
+    while running:
+        try:
+            await Send()
+        except Exception as a:
+            debug(f"SendLoop error:{a}")
+            #不要把traceback.format_exc()写入log,太大了
+            print(a,file=log)
 #回车退出程序
 def WaitForExit():
     input("[小心误触]输入回车退出")
@@ -28,14 +25,18 @@ async def Main():
     count=16
     proxy=12
     timeout=10
-    #解析命令行python Main.py <协程并发数> <几个并发使用代理> <网络timeout时间(秒)> [<是否debug>]
+    #解析命令行python Control.py <协程并发数> <几个并发使用代理> <网络timeout时间(秒)> [<是否debug>]
     from sys import argv
     count=int(argv[1])
     proxy=int(argv[2])
     timeout=float(argv[3])
     #debug
+    global debug
+    debug=logging.getLogger("RequestHFSCaptcha")
+    debug.addHandler(logging.StreamHandler(sys.stdout))
     if 5<=len(argv) and argv[4]=="True":
-        logging.basicConfig(level=logging.DEBUG)
+        debug.setLevel(logging.DEBUG)
+    debug=debug.debug
     #检查参数
     if not (1<=count and 0<=timeout and 0<=proxy<=count):
         print("参数错误")
@@ -94,9 +95,8 @@ async def Main():
     #等待...
     await asyncio.gather(*tasks)
     #结束
-    global ok
-    ok=f"count={ok}"
-    print(ok)
-    print(ok,file=log)
+    count=sum(a.count for a in connects)
+    print(count)
+    print(f"count={count}",file=log)
     log.close()
 asyncio.run(Main())

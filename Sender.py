@@ -3,7 +3,8 @@ from GetSvgCaptcha import GetSvgCaptcha
 from GetRandomPhone import GetRandomPhone
 from GetRandomProxy import GetRandomProxy
 from httpx import AsyncClient,Limits
-from logging import debug
+import logging
+debug=logging.getLogger("RequestHFSCaptcha").debug
 #要用的一些请求数据,配置文件
 UrlOfBase="https://hfs-be.yunxiao.com"
 UrlOfMatch="/v2/users/matched-users"
@@ -36,16 +37,18 @@ class Sender:
         self.timeout=timeout
         self.roleType=roleType
         self.proxy=proxy
-        #创建连接
+        #初始化连接和计数器
         self.Connect()
+        self.count=0
     #创建新的连接
     def Connect(self):
         #创建新连接
+        debug(f"Sender: create a new connect,timeout={self.timeout},proxy={self.proxy}")
         self.connect=AsyncClient(
             timeout=self.timeout,
             limits=Limits,
             http2=True,
-            proxies=GetRandomProxy() if self.proxy else None,
+            proxies=GetRandomProxy(self.proxy),
             base_url=UrlOfBase,
             headers=HeadersOfBase
         )
@@ -57,6 +60,7 @@ class Sender:
         else:
             #没有就随机获取一个手机号
             self.phone=GetRandomPhone()
+        debug(f"Sender: match,roleType={self.roleType},phone={self.phone}")
         #发送请求
         self.respones=(await self.connect.get(
             UrlOfMatch,
@@ -68,6 +72,7 @@ class Sender:
         )).json()
     #一次不需要svg的captcha过程,异步
     async def Captcha(self):
+        debug(f"Sender: captcha,roleType={self.roleType},phone={self.phone}")
         self.respones=(await self.connect.post(
             UrlOfCaptcha,
             headers=HeadersOfCaptcha,
@@ -78,49 +83,59 @@ class Sender:
         )).json()
     #一次需要svg的captcha过程,异步
     async def CaptchaWithSvg(self):
+        code=GetSvgCaptcha(self.respones["data"]["pic"])
+        debug(f"Sender: captcha with svg,roleType={self.roleType},phone={self.phone},svg={code}")
         self.respones=(await self.connect.post(
             UrlOfCaptcha,
             headers=HeadersOfCaptcha,
             json={
                 "phoneNumber":self.phone,
                 "roleType":self.roleType,
-                "code":GetSvgCaptcha(self.respones["data"]["pic"])
+                "code":code
             }
         )).json()
     #这个函数实现了完整请求手机验证码的过程(可以输入自定义的phone),返回成功请求的次数,异步
     async def Send(self,phone=None):
-        count=0
-        #match
-        await self.Match(phone)
-        #状态码不是0(成功值),或者手机号已被注册
-        if self.respones["code"] or self.respones["data"]["occupied"]:
-            #其他状态码
-            #1001:参数错误
-            debug("Sender: match error")
-            return count
-        #captcha
-        await self.Captcha()
-        #captcha的状态码,只要不需要重新match就一直请求,充分利用一个match
-        while True:
-            #code:0,成功,继续申请captcha
-            if self.respones["code"]==0:
-                debug("Sender: captcha success!!!")
-                count+=1
-                #继续申请captcha
-                await self.Captcha()
-                continue
-            #code:4048,需要图形验证码,不返回
-            elif self.respones["code"]==4048:
-                debug("Sender: captcha need svg...")
-                #captcha with svg
-                await self.CaptchaWithSvg()
-                #这里跟不需要svg的captcha请求共用一个解析
-                continue
-            #其他状态码,统一重新连接,然后返回
-            #code:1001,参数错误,出现在没match就请求的时候,与match的请求不是同一个连接,与match的请求不是同一个手机号,或者就是字面意思比如长度不对等
-            #code:4047,超出限制,不知道具体啥意思
-            #code:4049,60s后才能重新发送
-            debug("Sender: captcha return a unknown code,reconnect...")
-            await self.connect.aclose()
-            self.Connect()
-            return count
+        #保证连接关闭
+        close=True
+        try:
+            #match直到成功
+            while True:
+                await self.Match(phone)
+                #状态码不是0(成功值),或者手机号已被注册
+                if self.respones["code"] or self.respones["data"]["occupied"]:
+                    #其他状态码
+                    #1001:参数错误
+                    debug("Sender: match error")
+                    continue
+                break
+            #captcha
+            await self.Captcha()
+            #captcha的状态码
+            while True:
+                code=self.respones["code"]
+                #code:0,成功
+                if code==0:
+                    debug("Sender: captcha success!!!")
+                    self.count+=1
+                    #继续申请captcha,充分利用一个match
+                    await self.Captcha()
+                    continue
+                #code:4048,需要图形验证码
+                elif code==4048:
+                    debug("Sender: captcha need svg...")
+                    #captcha with svg
+                    await self.CaptchaWithSvg()
+                    #这里跟不需要svg的captcha请求共用一个解析
+                    continue
+                #其他状态码,要重连
+                #code:1001,参数错误,以下情况也会:没match就请求的时候,与match的请求不是同一个连接,与match的请求不是同一个手机号
+                #code:4047,超出限制,不知道具体啥意思
+                #code:4049,60s后才能重新发送
+                debug(f"Sender: captcha return {code},reconnect...")
+                break
+        #将错误传递到下一层不做处理,然后看下是否要重连
+        finally:
+            if close:
+                await self.connect.aclose()
+                self.Connect()
