@@ -1,5 +1,5 @@
 #-*- coding:utf-8 -*-
-from httpx import AsyncClient,Request
+from httpx import AsyncClient,Request,HTTPError
 import logging,asyncio
 debug=logging.getLogger("RequestHFSCaptcha").debug
 AsyncClient=AsyncClient(
@@ -17,12 +17,13 @@ Request=Request(
 async def GetRandomProxy():
     #尝试获取代理直到成功
     while True:
-        #从https://github.com/jhao104/proxy_pool的代理池获取
-        respones=(await AsyncClient.send(
-            Request
-        )).json().get("proxy")
-        if respones:
-            return "http://"+respones
-        #没获取到
-        debug("get random proxy error,retry after 10s...")
-        await asyncio.sleep(10)
+        try:
+            #从https://github.com/jhao104/proxy_pool的代理池获取
+            respones=(await AsyncClient.send(Request)).json().get("proxy")
+            if respones:
+                return "http://"+respones
+            raise HTTPError("no available proxy")
+        except HTTPError as a:
+            #没获取到
+            debug(f"get random proxy error({a}),retry after 10s...")
+            await asyncio.sleep(10)
