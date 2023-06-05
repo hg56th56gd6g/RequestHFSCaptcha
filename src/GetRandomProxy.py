@@ -1,7 +1,9 @@
 #-*- coding:utf-8 -*-
 from httpx import AsyncClient,Request,HTTPError
 import logging,asyncio
-debug=logging.getLogger("RequestHFSCaptcha").debug
+logging=logging.getLogger("RequestHFSCaptcha")
+info=logging.info
+debug=logging.debug
 AsyncClient=AsyncClient(
     trust_env=False
 )
@@ -25,5 +27,5 @@ async def GetRandomProxy():
             raise HTTPError("no available proxy")
         except HTTPError as a:
             #没获取到
-            debug(f"get random proxy error({a}),retry after 10s...")
+            debug(f"[ProxyPool]get random proxy error({a}),retry after 10s...")
             await asyncio.sleep(10)

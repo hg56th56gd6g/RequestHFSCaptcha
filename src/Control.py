@@ -21,29 +21,37 @@ if __name__=="__main__":
                 debug(a)
     #按回车退出
     def WaitForExit():
-        input("[Attacker][小心误触]按回车退出\n")
+        info("小心误触,按回车退出")
+        input()
         global running
         running=False
-        print("[Attacker]等待Sender关闭...")
+        info("等待Sender关闭...")
 
     #入口函数
     async def Main():
-        print("RequestHFSCaptcha By hg56th56gd6g\n" "[Attacker]初始化中...")
         #解析命令行python Control.py <协程并发数> <几个并发使用代理> <网络timeout时间(秒)> [<是否debug>]
         count=int(sys.argv[1])
         proxy=int(sys.argv[2])
         timeout=float(sys.argv[3])
-        #debug
-        global debug
-        debug=logging.getLogger("RequestHFSCaptcha")
-        debug.addHandler(logging.StreamHandler(sys.stdout))
+        #日志
+        global logging,info,debug
+        log=logging.getLogger("RequestHFSCaptcha")
+        a=logging.StreamHandler(sys.stdout)
+        a.setFormatter(logging.Formatter("[Attacker]%(message)s"))
+        log.addHandler(a)
+        log.setLevel(logging.INFO)
         if 5<=len(sys.argv) and sys.argv[4]=="True":
-            debug.setLevel(logging.DEBUG)
-        debug=debug.debug
+            log.setLevel(logging.DEBUG)
+        info=log.info
+        debug=log.debug
+        logging=log
         debug(str(sys.argv))
         #检查参数
         if not (1<=count and 0<=timeout and 0<=proxy<=count):
-            print("参数错误")
+            info("error:命令行参数错误")
+            exit()
+        info("RequestHFSCaptcha By hg56th56gd6g")
+        info("初始化中...")
         #学生家长对半分
         roleType=count//2
 
@@ -72,11 +80,11 @@ if __name__=="__main__":
         tasks.append(asyncio.create_task(asyncio.to_thread(WaitForExit)))
 
         #清理一下变量
-        del count,timeout,proxy,roleType,a
+        del count,timeout,proxy,roleType,a,log
         #等待退出
         try:
             await asyncio.wait(tasks)
         finally:
-            print(sum(a.count for a in connects))
-            print("[Attacker]退出...")
+            info(f"请求了{sum(a.count for a in connects)}个验证码")
+            info("退出...")
     asyncio.run(Main())

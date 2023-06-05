@@ -4,7 +4,9 @@ from GetRandomPhone import GetRandomPhone
 from GetRandomProxy import GetRandomProxy
 from httpx import AsyncClient,Limits
 import logging,asyncio
-debug=logging.getLogger("RequestHFSCaptcha").debug
+logging=logging.getLogger("RequestHFSCaptcha")
+info=logging.info
+debug=logging.debug
 #要用的一些请求数据,配置文件
 UrlOfBase="https://hfs-be.yunxiao.com"
 UrlOfMatch="/v2/users/matched-users"
@@ -52,7 +54,7 @@ class Sender:
         else:
             #没有就随机获取一个手机号
             self.phone=GetRandomPhone()
-        debug(f"Sender: match,roleType={self.roleType},phone={self.phone}")
+        debug(f"[Sender]match,roleType={self.roleType},phone={self.phone}")
         #发送请求
         self.response=(await self.connect.get(
             UrlOfMatch,
@@ -74,16 +76,16 @@ class Sender:
                 #其他状态码
                 #1001:参数错误
                 self.fail+=1
-                debug(f"Sender: match error with {code}")
+                debug(f"[Sender]match error:{code}")
                 continue
             #手机号已被注册
             if self.response["data"]["occupied"]:
-                debug("Sender: phone is exists")
+                debug("[Sender]phone is exists")
                 continue
             break
     #一次不需要svg的captcha过程,异步
     async def Captcha(self):
-        debug(f"Sender: captcha,roleType={self.roleType},phone={self.phone}")
+        debug(f"[Sender]captcha,roleType={self.roleType},phone={self.phone}")
         self.response=(await self.connect.post(
             UrlOfCaptcha,
             headers=HeadersOfCaptcha,
@@ -95,7 +97,7 @@ class Sender:
     #一次需要svg的captcha过程,异步
     async def CaptchaWithSvg(self):
         code=GetSvgCaptcha(self.response["data"]["pic"])
-        debug(f"Sender: captcha with svg,roleType={self.roleType},phone={self.phone},svg={code}")
+        debug(f"[Sender]captcha with svg,roleType={self.roleType},phone={self.phone},svg={code}")
         self.response=(await self.connect.post(
             UrlOfCaptcha,
             headers=HeadersOfCaptcha,
@@ -108,7 +110,7 @@ class Sender:
     #这个函数实现了完整请求手机验证码的过程(可以输入自定义的phone),并一直请求直到连接并不可用,异步
     async def Send(self,phone=None):
         #创建新连接,并保证连接关闭
-        debug(f"Sender: create a new connect,timeout={self.timeout},roleType={self.roleType},proxy={self.proxy}")
+        debug(f"[Sender]create a new connect,timeout={self.timeout},roleType={self.roleType},proxy={self.proxy}")
         async with AsyncClient(
             timeout=self.timeout,
             limits=Limits,
@@ -132,20 +134,20 @@ class Sender:
                     code=self.response["code"]
                     #code:0,成功
                     if code==0:
-                        debug("Sender: captcha success!!!")
+                        debug("[Sender]captcha success!!!")
                         self.count+=1
                         #继续申请captcha
                         NowCaptcha=self.Captcha
                         continue
                     #code:4048,需要图形验证码
                     elif code==4048:
-                        debug("Sender: captcha need svg...")
+                        debug("[Sender]captcha need svg...")
                         #captcha with svg跟不需要svg的captcha请求共用一个解析
                         NowCaptcha=self.CaptchaWithSvg
                         continue
                     #code:4049,60s后才能重新发送(并且设置了等待的flag)
                     elif code==4049 and SENDER_4049_WAIT:
-                        debug("Sender: wait 60s...")
+                        debug("[Sender]wait 60s...")
                         await asyncio.sleep(60)
                         NowCaptcha=self.Captcha
                         continue
@@ -155,6 +157,6 @@ class Sender:
                     else:
                         self.fail+=1
                         NowCaptcha=self.Captcha
-                        debug(f"Sender: captcha error with {code}")
+                        debug(f"[Sender]captcha error:{code}")
                         await self.MatchUntilSuccess(phone)
                         continue
