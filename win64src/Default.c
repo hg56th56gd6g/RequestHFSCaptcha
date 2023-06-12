@@ -19,7 +19,7 @@ void DefaultMain(void){
         DWORD temp=GetEnvironmentVariableA("HFS_COMMAND_CONFIG",0,0);
         if(temp==0){
             //使用默认参数
-            ph[1]=CreateKillerProcess("..\\Python\\python Control.py 16 16 5",job,0,0,0);
+            ph[1]=CreateKillerProcess("..\\Python\\python Control.py 16 15 5",job,0,0,0);
         }else{
             //给环境变量的值分配内存
             LPSTR line=LocalAlloc(LMEM_FIXED,temp);

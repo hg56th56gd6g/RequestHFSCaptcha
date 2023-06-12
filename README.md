@@ -10,9 +10,9 @@
 
 4. 可以使用环境变量"HFS_COMMAND_CONFIG"修改默认配置,将Control.py的命令行复制过去即可
 
-例如默认配置: "16 16 5"
+例如默认配置: "16 15 5"
 
-你需要输入命令"set HFS_COMMAND_CONFIG=..\Python\python Control.py 16 16 5"
+你需要输入命令"set HFS_COMMAND_CONFIG=..\Python\python Control.py 16 15 5"
 
 # 使用方式(通用)
 
@@ -20,7 +20,7 @@ python Control.py <协程并发数> <几个并发使用代理> <网络timeout时
 
 注意:绝大多数情况下不要打开debug,如果确实要使用debug,请在后面添加"True"参数,debug仅建议在单并发下打开(眼花缭乱())
 
-默认配置: `python Control.py 16 16 5` 占用少量资源!
+默认配置: `python Control.py 16 15 5` 占用少量资源!
 
 推荐配置: `python Control.py 64 60 5` 一组并发!
 
@@ -130,9 +130,9 @@ ps:有一个问题一直存在,就是captcha(和with svg)请求出一个451状�
 
 3. 可以通过环境变量"HFS_COMMAND_CONFIG"修改默认配置了(仅win64发布包),将Control.py的命令行复制过去即可
 
-例如默认配置: "16 16 10"
+例如默认配置: "16 15 10"
 
-你需要输入命令"set HFS_COMMAND_CONFIG=..\Python\python Control.py 16 16 10"
+你需要输入命令"set HFS_COMMAND_CONFIG=..\Python\python Control.py 16 15 10"
 
 (如果没找到这个环境变量,则使用默认配置)
 
@@ -140,13 +140,11 @@ ps:有一个问题一直存在,就是captcha(和with svg)请求出一个451状�
 
 (隐含的好处还有降低代理池压力,更充分的利用每一个代理,以及可以更高并发)
 
-5. 将默认配置修改为全部使用代理
+5. 优化了log
 
 6. roleType均衡,比如总16,代理12;会有2学生+非代理,2家长+非代理,6学生+代理,6家长+代理
 
 7. 将win64发布包里代理池的主程序改为c编写,少开一个python进程)))
-
-8. 优化了log
 
 ## 2.2
 

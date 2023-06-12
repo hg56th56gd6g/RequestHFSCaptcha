@@ -26,9 +26,11 @@ if __name__=="__main__":
         input()
         Sender.running=False
         info("等待Sender关闭...")
-        for a in asyncio.all_tasks():
-            if a.get_name()=="CancelThisSleep":
-                a.cancel()
+    #当退出时取消一些任务
+    def CancelSomeTasks(_=None):
+        for _ in asyncio.all_tasks():
+            if _.get_name()=="CancelThisSleep":
+                debug(f"cancel a sleep task:{_.cancel()}")
 
     #入口函数
     async def Main():
@@ -77,8 +79,9 @@ if __name__=="__main__":
             connects.append(Sender.Sender(**a))
             tasks.append(asyncio.create_task(SendLoop(connects[-1].Send)))
             debug(str(a))
-        #把等待退出也加入任务(新线程运行)
+        #把等待退出也加入任务(新线程运行),在结束时取消一些任务
         tasks.append(asyncio.create_task(asyncio.to_thread(WaitForExit)))
+        tasks[-1].add_done_callback(CancelSomeTasks)
 
         #清理一下变量,等待退出
         del count,timeout,proxy,roleType,a,log
