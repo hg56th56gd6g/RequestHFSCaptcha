@@ -1,58 +1,58 @@
 #-*- coding:utf-8 -*-
-#验证码识别仅可用于默认字体,其他字体需要改表,https://github.com/haua/svg-captcha-recognize
-from decimal import Decimal
 from re import compile
+#使用decimal,将数字类型储存为无限精度的小数,更加保险,也可以使用float来获取更高性能
+from decimal import Decimal as ToNumber
+#ToNumber=float
+
+#这是一些对path中数字(浮点数,必选的整数部分,和可选的小数点加数字部分)进行分析的函数
 #提取所有数字,返回一个可迭代对象
-reGetAllNumber=compile(r"[0-9]{1,}(?:\.[0-9]{1,}){0,1}")
-GetAllNumber=reGetAllNumber.finditer
-#获取第一个move指令(m/M<x> <y>)中的y座标
-reGetFirstMoveY=compile(r"[Mm][0-9]{1,}(?:\.[0-9]{1,}){0,1}\x20[0-9]{1,}(?:\.[0-9]{1,}){0,1}")
-def GetFirstMoveY(path):
-    return Decimal(reGetFirstMoveY.search(path).group().split(" ")[1])
-#解析出svg中所有的path的d部分(d="..."),返回一个可迭代对象
-reGetAllPath=compile(r"d=\x22[^\x22]{1,}\x22")
-def GetAllPath(svg):
-    for path in reGetAllPath.finditer(svg):
-        yield path.group()[3:-1:]
-#获取所有数字中的第一个(必然是x座标)
+rawInt=fr"[0-9]{{1,}}"
+reInt=compile(rawInt)
+rawFloat=fr"{rawInt}(?:\.{rawInt}){{0,1}}"
+reFloat=compile(rawFloat)
+def GetAllNumber(path):
+    for path in reFloat.finditer(path):
+        yield ToNumber(path.group())
+#获取第一个数字(必然是x座标)
 def GetFirstNumber(path):
-    return Decimal(reGetAllNumber.search(path).group())
-#获取最小的y座标
-def GetMinY(path):
-    #代表当前数字是否是一个y座标(数字是成对出现的,下标为奇数的必然是y座标)
-    flag=False
-    nums=GetAllNumber(path)
-    #跳过第一个数字(必然是x座标),flag=True
-    nums.__next__()
-    #取第二个数字(必然是y座标),flag=False
-    y=Decimal(nums.__next__().group())
-    #遍历所有数字
-    for number in nums:
-        #如果这个是y座标
-        if flag:
-            number=Decimal(number.group())
-            #更新最小的y值
-            if number<y:
-                y=number
-        flag=not flag
-    return y
-#获取字符宽度
-def GetWidth(path):
-    #代表当前数字是否是一个x座标
-    flag=False
-    nums=GetAllNumber(path)
-    #最小和最大x值,两个相减就是宽度(这里只调用了一次next,所以flag的含义和GetMinY里的相反)
-    minx=maxx=Decimal(nums.__next__().group())
-    for number in nums:
-        if flag:
-            number=Decimal(number.group())
-            #更新最小或最大x值
-            if number<minx:
-                minx=number
-            elif maxx<number:
-                maxx=number
-        flag=not flag
-    return maxx-minx
+    return ToNumber(reFloat.search(path).group())
+#分析所有数字,返回(first,minx,maxx,miny,maxy),节省遍历次数
+def UnpackAllNumber(path):
+    a=GetAllNumber(path)
+    b=True
+    #取前两个值作为min/maxx和min/maxy
+    first=minx=maxx=next(a)
+    miny=maxy=next(a)
+    for path in a:
+        #这个值是否是x座标(偶数下标是x,奇数下标是y)
+        if b:
+            if path<minx:
+                minx=path
+            else:
+                maxx=path
+            b=False
+        else:
+            if path<miny:
+                miny=path
+            else:
+                maxy=path
+            b=True
+    return first,minx,maxx,miny,maxy
+
+#这是一些对svg/path进行解析的函数
+#解析出svg中所有的path的d部分(d="<catch this>"),返回一个可迭代对象
+rawPath=fr"d=\x22([^\x22]{{1,}})\x22"
+rePath=compile(rawPath)
+def GetAllPath(svg):
+    for svg in rePath.finditer(svg):
+        yield svg.group(1)
+#获取第一个move指令(m/M<x> <y(catch this)>)中的y座标
+rawMoveY=fr"[Mm]{rawFloat}\x20({rawFloat})"
+reMoveY=compile(rawMoveY)
+def GetFirstMoveY(path):
+    return ToNumber(reMoveY.search(path).group(1))
+
+#这是匹配字符的表,默认字体,其他字体需要改表改函数,https://github.com/haua/svg-captcha-recognize
 #path长度唯一的字符
 MapOfPathLength={
     998:"1",
@@ -178,40 +178,63 @@ MapOfPathLength={
     3968:"m",
     4201:"3"
 }
-#上面找不到就来这里找,这里获取的对象要进行函数调用,传入path,返回对应字符
-MapOfInputPath={
-    #找最小的y座标
-    986:  (lambda path:"I" if 13<GetMinY(path) else "l"),
-    1068: (lambda path:"I" if 13<GetMinY(path) else "l"),
-    1610: (lambda path:"x" if 19<GetMinY(path) else "J"),
-    1744: (lambda path:"x" if 19<GetMinY(path) else "J"),
-    1615: (lambda path:"r" if 18<GetMinY(path) else "N"),
-    2198: (lambda path:"n" if 19<GetMinY(path) else "C"),
-    2381: (lambda path:"n" if 19<GetMinY(path) else "C"),
-    1598: (lambda path:"X" if 13<GetMinY(path) else "N"),
-    1731: (lambda path:"X" if 13<GetMinY(path) else "N"),
-    1694: (lambda path:"z" if 22<GetMinY(path) else "t"),
-    1835: (lambda path:"z" if 22<GetMinY(path) else "t"),
-    2279: (lambda path:"R" if 13<GetMinY(path) else "M"),
-
-    #找第一个move指令的y座标
-    1274: (lambda path:"y" if 30<GetFirstMoveY(path) else "L"),
-    1380: (lambda path:"y" if 30<GetFirstMoveY(path) else "L"),
-
-    #找宽度
-    2318: (lambda path:"W" if 30<GetWidth(path) else "4")
+#多个字符path长度相等,这里获取的对象要进行函数调用,传入最小y,返回对应字符
+MapOfInputMinY={
+    986:  (lambda y:"I" if 13<y else "l"),
+    1068: (lambda y:"I" if 13<y else "l"),
+    1610: (lambda y:"x" if 19<y else "J"),
+    1744: (lambda y:"x" if 19<y else "J"),
+    1615: (lambda y:"r" if 18<y else "N"),
+    2198: (lambda y:"n" if 19<y else "C"),
+    2381: (lambda y:"n" if 19<y else "C"),
+    1598: (lambda y:"X" if 13<y else "N"),
+    1731: (lambda y:"X" if 13<y else "N"),
+    1694: (lambda y:"z" if 22<y else "t"),
+    1835: (lambda y:"z" if 22<y else "t"),
+    2279: (lambda y:"R" if 13<y else "M")
 }
+
+#将map转换为tuple来加快取值(因为键都是数字,没有的索引用None填充)
+def compile(map):
+    #取最大的长度键作为tuple长度
+    temp=[None]*(max(map)+1)
+    for length in map:
+        temp[length]=map[length]
+    #还返回一个所有有效索引的集合
+    return frozenset(map),tuple(temp)
+#执行
+SetOfPathLength,MapOfPathLength=compile(MapOfPathLength)
+SetOfInputMinY,MapOfInputMinY=compile(MapOfInputMinY)
+#所有有效值的集合,用来剔除噪点
+SetOfAll=frozenset({2318,1274,1380}|SetOfPathLength|SetOfInputMinY)
+
 #获取验证码的接口
 def GetSvgCaptcha(svg):
-    #值储存了每个解析的字符,键是它最左边的x座标
+    #值储存了每个解析的字符,键是它的FirstNumber(因为字符没有重叠的x座标部分,所以随便一个x座标就可以)
     chars={}
     for path in GetAllPath(svg):
         svg=len(path)
-        #去每个表里找有没有这个字符
-        if svg in MapOfPathLength:
-            chars[GetFirstNumber(path)] = MapOfPathLength[svg]
-        elif svg in MapOfInputPath:
-            chars[GetFirstNumber(path)] = MapOfInputPath[svg](path)
         #没找到,视作噪点
-    #用键(它最左边的x座标)对所有字符排序并组合
-    return "".join(chars[path] for path in sorted(chars))
+        if svg not in SetOfAll:
+            continue
+        #去每个表里找对应长度(元素极少的不用表了)
+        if svg in SetOfPathLength:
+            #这个表不需要遍历数字
+            chars[GetFirstNumber(path)] = MapOfPathLength[svg]
+            continue
+        if svg==1274 or svg==1380:
+            #GetFirstMoveY(放在前面,不需要遍历所有数字)
+            chars[GetFirstNumber(path)]="y" if 30<GetFirstMoveY(path) else "L"
+            continue
+        #剩下的需要分析所有数字
+        first,minx,maxx,miny,maxy=UnpackAllNumber(path)
+        if svg in SetOfInputMinY:
+            #最小y座标
+            chars[first] = MapOfInputMinY[svg](miny)
+        if svg==2318:
+            #字符宽度
+            chars[first]="W" if 30<maxx-minx else "4"
+    #排序字符
+    return "".join(chars[svg] for svg in sorted(chars))
+
+del compile,rawInt,rawFloat,rawPath,rawMoveY

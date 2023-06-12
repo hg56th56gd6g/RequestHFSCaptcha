@@ -10,11 +10,12 @@ if __name__=="__main__":
         pass
     #运行信息
     import Sender
-    running=True
+    connects=[]
+    tasks=[]
 
     #一直发送请求,直到running为False时退出
     async def SendLoop(Send):
-        while running:
+        while Sender.running:
             try:
                 await Send()
             except Exception as a:
@@ -23,9 +24,11 @@ if __name__=="__main__":
     def WaitForExit():
         info("小心误触,按回车退出")
         input()
-        global running
-        running=False
+        Sender.running=False
         info("等待Sender关闭...")
+        for a in asyncio.all_tasks():
+            if a.get_name()=="CancelThisSleep":
+                a.cancel()
 
     #入口函数
     async def Main():
@@ -56,8 +59,6 @@ if __name__=="__main__":
         roleType=count//2
 
         #创建count个SendLoop,等待它们全部退出
-        connects=[]
-        tasks=[]
         a={"timeout":timeout,"roleType":None,"proxy":None}
         while count:
             count-=1
@@ -79,12 +80,14 @@ if __name__=="__main__":
         #把等待退出也加入任务(新线程运行)
         tasks.append(asyncio.create_task(asyncio.to_thread(WaitForExit)))
 
-        #清理一下变量
+        #清理一下变量,等待退出
         del count,timeout,proxy,roleType,a,log
-        #等待退出
-        try:
-            await asyncio.wait(tasks)
-        finally:
-            info(f"请求了{sum(a.count for a in connects)}个验证码")
-            info("退出...")
-    asyncio.run(Main())
+        await asyncio.wait(tasks)
+
+    try:
+        asyncio.run(Main())
+    except (KeyboardInterrupt,asyncio.CancelledError):
+        pass
+    finally:
+        info(f"请求了{sum(a.count for a in connects)}个验证码")
+        info("退出...")
