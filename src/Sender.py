@@ -3,7 +3,6 @@ from GetSvgCaptcha import GetSvgCaptcha
 from Phone import GetRandomPhone
 from Proxy import GetRandomProxy
 from httpx import AsyncClient,Limits
-from random import uniform
 import logging,asyncio
 logging=logging.getLogger("RequestHFSCaptcha")
 info=logging.info
@@ -70,7 +69,7 @@ class Sender:
     #随机等待一段时间模拟人类操作
     @staticmethod
     async def ImAHuman():
-        await asyncio.sleep(uniform(1,4))
+        await asyncio.sleep(1)
     #一次match的过程,异步,成功返回True,失败返回False
     async def Match(self,phone=None):
         #有没有自定义手机号
