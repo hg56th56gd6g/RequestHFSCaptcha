@@ -4,33 +4,23 @@
 
 1. 下载发布包并解压
 
-2. 双击文件夹内的"Default.exe"即可启动代理池(无窗口模式),然后运行默认配置(此时应只有一个窗口,关闭它会关闭主程序和代理池)
+2. 双击文件夹内的"Default.bat"即可启动代理池并运行默认配置
 
 3. 玩的开心! :D
 
-4. 可以使用环境变量"HFS_COMMAND_CONFIG"修改默认配置,将Control.py的命令行复制过去即可
-
-例如默认配置: "16 15 5"
-
-你需要输入命令"set HFS_COMMAND_CONFIG=..\Python\python Control.py 16 15 5"
-
 # 使用方式(通用)
 
-python Control.py <协程并发数> <几个并发使用代理> <网络timeout时间(秒)> \[<是否debug>\]
+并发数 = 进程数\*(不用代理的协程数+使用代理的协程数)
 
-注意:绝大多数情况下不要打开debug,如果确实要使用debug,请在后面添加"True"参数,debug仅建议在单并发下打开(眼花缭乱())
+`python Main.py <不用代理的协程数(int)> <使用代理的协程数(int)> <网络timeout时间(float,秒)> <是否debug(str,True/其他)> <进程数(int)>`
 
-默认配置: `python Control.py 16 15 5` 占用少量资源!
+默认配置: `python Main.py 1 3 5 False 1` 试试水!
 
-推荐配置: `python Control.py 64 60 5` 一组并发!
+推荐配置: `python Main.py 2 6 5 False 1` 较低占用!
 
-较高配置: `python Control.py 256 250 5` 压榨带宽!
+调试配置: `python Main.py 1 0 5 True 1` debug!
 
-调试配置: `python Control.py 1 0 5 True` debugggggggggggggggggggggg!
-
-注意:并发不要太高,代理池受不了,内存还行(256并发占用500mb内存)
-
-如果你的cpu单核也受不了,可以考虑多进程分担,因为python的gil
+多进程是因为python的gil,如果cpu成为瓶颈可以考虑多进程,多进程永远只是备选
 
 就是这样,接下来是python环境配置和代理池使用!
 
@@ -40,61 +30,49 @@ win64发布包里的python环境已经安装了这些库,如果你想新开一�
 
 ## 1.
 
-python3.8+(推荐3.11+,这是我的运行环境)
+python3.11
 
 位置就在win64发布包的根目录的Python文件夹,可以参考默认的
 
 ## 2.
 
-在1.的python环境里`pip install httpx[brotli,http2,socks]`,这是主程序需要的库
+安装主程序所需的库
+
+`pip install httpx[brotli,http2,socks]`
 
 ## 3.
 
 一个https://github.com/jhao104/proxy_pool的代理池,获取随机代理在http://127.0.0.1:5010/get/
 
-或者你也可以修改GetRandomProxy.py来使用你自己的获取随机代理
+或者你也可以修改Proxy.py来使用你自己的获取随机代理
 
-### 在win64发布包里手动开启代理池
+进入"RequestHFSCaptcha\ProxyPool"安装
 
-在win64的二进制文件里有提供默认代理池的运行环境
-
-如果你想新开一个python环境(跟2.一样),需要进入"RequestHFSCaptcha\ProxyPool"输入命令`pip install -r requirements.txt`
-
-之后的每次运行你只需要运行"ProxyPool.exe"即可运行代理池,这会新建三个cmd窗口,不要关闭它们,除非你需要关闭代理池
-
-命令行输入`ProxyPool.exe -`可以不新建三个窗口运行代理池(命令行的最后一个字符是"-"即可,后面不要加空格)
-
-注:在无窗口模式下ProxyPool.exe不会主动退出,不要关闭它的窗口,除非你需要关闭代理池
-
-### win64默认代理池的运行环境(是已有的,不用你安装,仅在这里列出来)
-
-#### Redis-x64-5.0.14.1
-
-rdbcompression no
-
-#### proxy_pool-2.4.1
-
-redis配置
-
-DB_CONN = "redis://localhost:6379/0"
-
-TABLE_NAME = "use_proxy"
-
-代理验证目标网站(要求低点)
-
-HTTP_URL = "http://httpbin.org"
-
-HTTPS_URL = "https://httpbin.org"
-
-timeout
-
-VERIFY_TIMEOUT = 5
-
-代理池内最小代理数量
-
-POOL_SIZE_MIN = 1024
+`pip install -r requirements.txt`
 
 # 更新日志
+
+## 3.0
+
+1. 请求api同步至好分数手机app
+
+2. 大量稳定性与性能优化
+
+3. 命令行第一个参数现在是(几个并发使用代理)而不是以前的(总共几个并发)
+
+4. 入口点改为Main.py并内置了多进程支持,充分利用多个核心
+
+需注意:由于好分数对ip做了限制(仍然是那个http 451问题),可能会有大部分请求都被451了,目前唯一的解决办法就是使用高质量代理,因为这个问题即使是在app上的普通用户也会有
+
+5. win64发布包使用cmd脚本代替exe
+
+## 2.5
+
+1. 优化了Sender
+
+(451必须一直重试,如果直接等待较长一段时间会被关闭服务)
+
+2. 优化了GetSvgCaptcha,解析部分更改为svg标准,并匹配了好分数新的字体,以及更易于理解的代码
 
 ## 2.4
 
