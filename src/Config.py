@@ -44,18 +44,10 @@ Host = "hfs-be.yunxiao.com"
 UrlOfBase = "https://" + Host
 #刷新svg验证码
 UrlOfSvg = "/v2/users/captcha"
-#发送验证码
-UrlOfCaptcha = (
-    #手机验证码_注册(需要未注册)
-    "/v2/native-users/verification-msg-with-captcha",
-    #手机验证码_找回密码(需要已注册)
-    #"/v2/users/retrieving-msg-code-with-captcha",
-    #手机验证码_?(需要已登录,暂时无法实现)
-    #"/v2/user-center/bind-msg-token-with-captcha",
-    #"/v2/imported-users/verification-msg-with-captcha",
-)
-def GetUrlOfCaptcha():
-    return choice(UrlOfCaptcha)
+#手机验证码_注册(需要未注册)
+UrlOfRegister = "/v2/native-users/verification-msg-with-captcha"
+#手机验证码_找回密码(需要已注册)
+UrlOfForgotPWD = "/v2/users/retrieving-msg-code-with-captcha"
 
 #请求头
 HeadersOfSvg = ()
