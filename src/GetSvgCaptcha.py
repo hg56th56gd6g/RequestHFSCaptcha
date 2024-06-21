@@ -32,8 +32,8 @@ reSigned = compile(fr"{sign}?{fraction}{exponent}?")
 #(\s)空白(空格,\n,\r,横tab,换页(标准有,但bnf定义没有),竖tab(标准没有))
 wsp = fr"[\x20\x0A\x0D\x09\x0c\x0b]"
 #分割符,逗号(\x2c)前后任意数量空白,可以没有
-reComma=compile(fr"{wsp}*\x2c?{wsp}*")
-del digit,sign,fraction,exponent,wsp,compile
+reComma = compile(fr"{wsp}*\x2c?{wsp}*")
+del digit, sign, fraction, exponent, wsp, compile
 
 
 #命令的信息(新命令字符(统一到大写),原来是否为小写(相对坐标),形参序列)
@@ -55,7 +55,7 @@ mapCommandParams = {
     "T": ("T", False, "ss"),
     "t": ("T", True, "ss"),
     "A": ("A", False, "uusffss"),
-    "a": ("A", True, "uusffss"),
+    "a": ("A", True, "uusffss")
 }
 
 
@@ -146,7 +146,7 @@ def ParsePathD(d, l):
             yield now_x, now_y
 
 
-#这是匹配字符的表,其他字体需要改表改函数,https://github.com/haua/svg-captcha-recognize
+#d部分长度
 MapOfLength = {
     998:  "1",
     1081: "1",
@@ -203,6 +203,7 @@ MapOfLength = {
     2162: "D",
     2164: "O",
     2183: "w",
+    2186: "w",
     2199: "C",
     2200: "C",
     2201: "C",
@@ -231,10 +232,12 @@ MapOfLength = {
     2461: "d",
     2464: "p",
     2466: "M",
+    2472: "M",
     2485: "U",
     2498: "c",
     2501: "e",
     2503: "W",
+    2511: "W",
     2512: "q",
     2526: "a",
     2546: "2",
@@ -274,82 +277,78 @@ MapOfLength = {
 
 
 #最小y坐标
-MapOfMinY = {
-    986:  (lambda y: "I" if 13<y else "l"),
-    1068: (lambda y: "I" if 13<y else "l"),
-    1610: (lambda y: "x" if 19<y else "J"),
-    1744: (lambda y: "x" if 19<y else "J"),
-    1615: (lambda y: "r" if 18<y else "N"),
-    2198: (lambda y: "n" if 19<y else "C"),
-    2381: (lambda y: "n" if 19<y else "C"),
-    1598: (lambda y: "X" if 13<y else "N"),
-    1731: (lambda y: "X" if 13<y else "N"),
-    1694: (lambda y: "z" if 22<y else "t"),
-    1835: (lambda y: "z" if 22<y else "t"),
-    2279: (lambda y: "R" if 13<y else "M")
-}
+MapOfMinY = {}
+MapOfMinY[1615] = (lambda y: "r" if 18<y else "N")
+MapOfMinY[2279] = (lambda y: "R" if 13<y else "M")
+MapOfMinY[986] = MapOfMinY[1068] = (lambda y: "I" if 13<y else "l")
+#MapOfMinY[1610] = MapOfMinY[1744] = (lambda y: "x" if 19<y else "J")#30.01 30.08 30.0 29.97 30.6 J
+#MapOfMinY[2198] = MapOfMinY[2381] = (lambda y: "n" if 19<y else "C")#30.67 C
+#MapOfMinY[1598] = MapOfMinY[1731] = (lambda y: "X" if 13<y else "N")#27.79 27.75 27.84 27.74 N
+#MapOfMinY[1694] = MapOfMinY[1835] = (lambda y: "z" if 22<y else "t")#34.2 34.12 t
+MapOfMinY[1610] = MapOfMinY[1744] = (lambda y: "J" if 29<y<31 else "x")
+MapOfMinY[2198] = MapOfMinY[2381] = (lambda y: "C" if 29<y<31 else "n")
+MapOfMinY[1598] = MapOfMinY[1731] = (lambda y: "N" if 26<y<28 else "X")
+MapOfMinY[1694] = MapOfMinY[1835] = (lambda y: "t" if 33<y<35 else "z")
 
 
-#解析验证码(依赖xml解析驱动,expat使用回调的方式,所以需要给数据加句柄)
-class Parser:
-    def __init__(self):
-        #储存了(x坐标,每个解析的字符),因为字符没有重叠的x座标部分,所以随便一个x座标就可以
-        self.chars = []
 
-    #仅捕获元素开始的事件,过滤出所有path元素的d属性(不论层级,并忽略命名空间)
-    def start(self, name, attributes):
-        d = attributes.get("d")
-        if not (d and name.endswith("path")):
-            return
-        #第一个m命令的x和y是(chars的键(以前的FirstNumber)和以前的FirstMoveY)
-        l = len(d)
-        d = ParsePathD(d, l)
-        x, y = next(d, (None,None))
-        if not x:
-            return
-        #只需长度即可判断的
-        char = MapOfLength.get(l)
-        if char:
-            pass
-        #FirstMoveY
-        elif l in (1274, 1380):
-            char = "y" if 30<y else "L"
-        #最小y座标
-        elif (char := MapOfMinY.get(l)):
-            miny = y
-            for _, y in d:
-                if y < miny:
-                    miny = y
-            char = char(miny)
-        #字符宽度,x变量还要使用,所以此处y其实是x
-        elif l == 2318:
-            minx = x
-            maxx = x
-            for y, _ in d:
-                if y < minx:
-                    minx = y
-                elif maxx < y:
-                    maxx = y
-            char = "W" if 30 < maxx-minx else "4"
-        #没识别出字符则忽略
-        else:
-            return
-        self.chars.append((x, char))
+#识别d的字符,返回(x坐标, 字符)
+def GetCharXD(d):
+    #第一个m命令的x和y是(chars的键(以前的FirstNumber)和以前的FirstMoveY)
+    l = len(d)
+    r = [l]
+    d = ParsePathD(d, l)
+    x, y = next(d, (None,None))
+    if not x:
+        x = -1
+    #只需长度即可判断的
+    c = MapOfLength.get(l)
+    if c:
+        pass
+    #最小y座标
+    elif (c := MapOfMinY.get(l)):
+        a = y
+        for _, y in d:
+            if y < a:
+                a = y
+        c = c(a)
+        r.append(a)
+    #FirstMoveY
+    elif l in (1274, 1380):
+        c = "y" if 30<y else "L"
+        r.append(y)
+    #字符宽度
+    elif l == 2318:
+        a = x
+        b = x
+        for y, _ in d:
+            if y < a:
+                a = y
+            elif b < y:
+                b = y
+        c = "W" if 30 < b-a else "4"
+        r.append(b-a)
+    #没识别出
+    else:
+        c = ""
+    #return (x, c, r)
+    return (x, c)
 
 
 #获取验证码的接口
-from xml.parsers.expat import ExpatError, ErrorString, ParserCreate
+from xml.etree.ElementTree import ParseError, fromstring
 from operator import itemgetter
 itemgetter = itemgetter(0)
-def GetSvgCaptcha(svg):
-    #由xml解析驱动识别
-    g = ParserCreate()
-    p = Parser()
-    g.StartElementHandler = p.start
+def GetSvgCaptcha(d):
+    c = []
     try:
-        g.Parse(svg, True)
-    except ExpatError:
-        raise SvgParseError(f"xml parse error at pos {g.ErrorByteIndex}: {ErrorString(g.ErrorCode)}")
+        #根节点下在svg命名空间中的所有path节点
+        for d in fromstring(d).iterfind("{http://www.w3.org/2000/svg}path"):
+            if (d := d.get("d")):
+                c.append(GetCharXD(d))
+    except ParseError as e:
+        raise SvgParseError(f"xml parse error {e.code} at pos {e.position}")
+    #return c
     #根据[0]的x坐标排序字符
-    p.chars.sort(key = itemgetter)
-    return "".join(svg[1] for svg in p.chars)
+    c.sort(key = itemgetter)
+    return "".join(d[1] for d in c)

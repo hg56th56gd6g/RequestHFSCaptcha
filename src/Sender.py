@@ -12,7 +12,7 @@ class ContentError(Exception):pass
 
 
 class Sender:
-    def __init__(self, roleType, proxy, SenderID = ""):
+    def __init__(self, roleType, proxy = None, SenderID = ""):
         self.roleType = roleType
         self.proxy = proxy
         self.sid = f"[Sender_{SenderID}]"
